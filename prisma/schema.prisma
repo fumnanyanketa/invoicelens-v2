@@ -1,7 +1,5 @@
-// This is your Prisma schema file,
-// learn more about it in the docs: https://pris.ly/d/prisma-schema
-
-// Get a free hosted Postgres database in seconds: `npx create-db`
+// InvoiceLens v2 — Prisma schema
+// SQLite for local development. Switches to Postgres at deployment time.
 
 generator client {
   provider = "prisma-client"
@@ -10,4 +8,104 @@ generator client {
 
 datasource db {
   provider = "sqlite"
+}
+
+// =============================================================================
+// VENDOR — master list of known suppliers
+// =============================================================================
+model Vendor {
+  id                  Int       @id @default(autoincrement())
+  name                String
+  nameVariants        String    @default("[]") // JSON array of alt names
+  yTunnus             String?   // Finnish business ID, format 1234567-8
+  country             String    @default("FI") // ISO 3166-1 alpha-2
+  expectedGlCategory  String?   // e.g. FUEL, VEHICLE_MAINTENANCE
+  isActive            Boolean   @default(true)
+  createdAt           DateTime  @default(now())
+  updatedAt           DateTime  @updatedAt
+
+  // Inverse relation: a vendor has many invoices
+  invoices            Invoice[]
+
+  @@index([name])
+  @@index([yTunnus])
+}
+
+// =============================================================================
+// INVOICE — every invoice flowing through the triage queue
+// =============================================================================
+model Invoice {
+  id                      Int       @id @default(autoincrement())
+
+  // File metadata
+  originalFilename        String
+  storagePath             String
+
+  // Extracted by Claude Haiku
+  vendorName              String?
+  vendorEmail             String?
+  invoiceNumber           String?
+  invoiceDate             DateTime?
+  dueDate                 DateTime?
+  grossAmount             Float?
+  vatAmount               Float?
+  vatRate                 Float?
+  vatCode                 String?
+  currency                String    @default("EUR")
+  lineItems               String    @default("[]") // JSON array
+
+  // GL reasoning by Claude Sonnet
+  glCodeSuggestion        String?
+  glReasoning             String?
+
+  // Confidence components (0.0 - 1.0)
+  extractionCompleteness  Float?
+  vendorMatchScore        Float?
+  duplicateSignal         Float?
+  sanctionsSignal         Float?
+  confidenceScore         Float?
+
+  // Routing
+  lane                    String?   // GREEN, AMBER, RED
+
+  // Decision
+  status                  String    @default("PENDING") // PENDING, APPROVED, EDITED, BLOCKED
+  decidedAt               DateTime?
+
+  // Optional vendor relation (null when new/unknown)
+  vendorId                Int?
+  vendor                  Vendor?   @relation(fields: [vendorId], references: [id])
+
+  // Inverse relation: an invoice has many audit log entries
+  auditLogs               AuditLog[]
+
+  createdAt               DateTime  @default(now())
+  updatedAt               DateTime  @updatedAt
+
+  @@index([invoiceNumber])
+  @@index([vendorName])
+  @@index([lane])
+  @@index([status])
+  @@index([createdAt])
+}
+
+// =============================================================================
+// AUDIT LOG — immutable record of every action on every invoice
+// =============================================================================
+model AuditLog {
+  id                Int       @id @default(autoincrement())
+  invoiceId         Int
+  invoice           Invoice   @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
+
+  action            String    // UPLOADED, EXTRACTED, REASONED, ROUTED_GREEN, ROUTED_AMBER, ROUTED_RED, APPROVED, EDITED, BLOCKED
+  userId            String    @default("heikki") // hardcoded until auth is added
+  aiRecommendation  String?   // JSON snapshot of AI's suggestion
+  humanDecision     String?   // JSON snapshot of what user did
+  reasoning         String?   // free-text note from user
+
+  timestamp         DateTime  @default(now())
+
+  @@index([invoiceId])
+  @@index([action])
+  @@index([timestamp])
 }
