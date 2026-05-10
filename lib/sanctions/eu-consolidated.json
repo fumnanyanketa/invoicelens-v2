@@ -1,0 +1,130 @@
+{
+  "metadata": {
+    "source": "Fictional dataset patterned on the EU consolidated sanctions list structure",
+    "purpose": "InvoiceLens v2 demo - vendor risk screening trip-wire",
+    "lastUpdated": "2026-05-10",
+    "note": "In production, this file would be regenerated nightly from the official EU consolidated list at https://data.europa.eu/data/datasets/consolidated-list-of-persons-groups-and-entities-subject-to-eu-financial-sanctions"
+  },
+  "entries": [
+    {
+      "id": "EU.SANC.2026.0001",
+      "name": "Karelia Logistics Holding Ltd",
+      "nameVariations": ["Karelia Logistics", "Karelia Holding", "KLH", "OOO Karelia Logistics"],
+      "country": "RU",
+      "entityType": "LEGAL_ENTITY",
+      "listingReference": "Council Regulation (EU) 2024/1745",
+      "listedOn": "2024-06-24",
+      "rationale": "Logistics operations supporting sanctioned freight corridors"
+    },
+    {
+      "id": "EU.SANC.2026.0002",
+      "name": "Northern Star Trading OOO",
+      "nameVariations": ["Northern Star Trading", "OOO Severnaya Zvezda", "NS Trading"],
+      "country": "RU",
+      "entityType": "LEGAL_ENTITY",
+      "listingReference": "Council Regulation (EU) 2024/1745",
+      "listedOn": "2024-06-24",
+      "rationale": "Trade finance circumvention"
+    },
+    {
+      "id": "EU.SANC.2026.0003",
+      "name": "Bashir Al-Mahdi Industries",
+      "nameVariations": ["Al-Mahdi Industries", "BAM Industries", "Bashir Industries"],
+      "country": "SY",
+      "entityType": "LEGAL_ENTITY",
+      "listingReference": "Council Decision 2013/255/CFSP",
+      "listedOn": "2023-11-12",
+      "rationale": "Material support to designated regime entities"
+    },
+    {
+      "id": "EU.SANC.2026.0004",
+      "name": "Caspian Shipping Solutions DMCC",
+      "nameVariations": ["Caspian Shipping", "CSS DMCC", "Caspian Solutions"],
+      "country": "AE",
+      "entityType": "LEGAL_ENTITY",
+      "listingReference": "Council Regulation (EU) 2024/1745",
+      "listedOn": "2024-09-15",
+      "rationale": "Sanctions evasion via vessel re-flagging"
+    },
+    {
+      "id": "EU.SANC.2026.0005",
+      "name": "Polaris Defence Engineering JSC",
+      "nameVariations": ["Polaris Defence", "PDE JSC", "Polaris Engineering"],
+      "country": "BY",
+      "entityType": "LEGAL_ENTITY",
+      "listingReference": "Council Regulation (EC) No 765/2006",
+      "listedOn": "2024-02-28",
+      "rationale": "Dual-use goods supplied to designated end users"
+    },
+    {
+      "id": "EU.SANC.2026.0006",
+      "name": "Volga Maritime Group",
+      "nameVariations": ["Volga Maritime", "VMG", "Volga Group Shipping"],
+      "country": "RU",
+      "entityType": "LEGAL_ENTITY",
+      "listingReference": "Council Regulation (EU) 2024/1745",
+      "listedOn": "2024-12-19",
+      "rationale": "Shadow fleet operator"
+    },
+    {
+      "id": "EU.SANC.2026.0007",
+      "name": "Saif Petrochemical Holdings",
+      "nameVariations": ["Saif Petrochemical", "SPH Holdings", "Saif Holdings"],
+      "country": "IR",
+      "entityType": "LEGAL_ENTITY",
+      "listingReference": "Council Decision 2010/413/CFSP",
+      "listedOn": "2025-03-04",
+      "rationale": "Revenue generation for designated programmes"
+    },
+    {
+      "id": "EU.SANC.2026.0008",
+      "name": "Atlas Cargo Aviation FZE",
+      "nameVariations": ["Atlas Cargo", "ACA FZE", "Atlas Aviation"],
+      "country": "AE",
+      "entityType": "LEGAL_ENTITY",
+      "listingReference": "Council Regulation (EU) 2024/1745",
+      "listedOn": "2025-01-22",
+      "rationale": "Air freight in support of sanctioned military procurement"
+    },
+    {
+      "id": "EU.SANC.2026.0009",
+      "name": "Donbas Industrial Combine",
+      "nameVariations": ["Donbas Industrial", "DIC", "Donbas Combine"],
+      "country": "RU",
+      "entityType": "LEGAL_ENTITY",
+      "listingReference": "Council Decision 2014/145/CFSP",
+      "listedOn": "2022-04-08",
+      "rationale": "Operations in non-government-controlled territory"
+    },
+    {
+      "id": "EU.SANC.2026.0010",
+      "name": "Coastal Refining Partners SA",
+      "nameVariations": ["Coastal Refining", "CRP SA", "Coastal Partners"],
+      "country": "VE",
+      "entityType": "LEGAL_ENTITY",
+      "listingReference": "Council Decision (CFSP) 2017/2074",
+      "listedOn": "2024-08-30",
+      "rationale": "Revenue generation for designated regime"
+    },
+    {
+      "id": "EU.SANC.2026.0011",
+      "name": "Silk Road Financial Services Ltd",
+      "nameVariations": ["Silk Road Financial", "SRFS Ltd", "Silk Road Services"],
+      "country": "HK",
+      "entityType": "LEGAL_ENTITY",
+      "listingReference": "Council Regulation (EU) 2024/1745",
+      "listedOn": "2025-02-11",
+      "rationale": "Payment intermediation for sanctioned counterparties"
+    },
+    {
+      "id": "EU.SANC.2026.0012",
+      "name": "Eastern Bloc Logistics OAO",
+      "nameVariations": ["Eastern Bloc Logistics", "OAO Eastern Bloc", "EBL Logistics"],
+      "country": "RU",
+      "entityType": "LEGAL_ENTITY",
+      "listingReference": "Council Regulation (EU) 2024/1745",
+      "listedOn": "2024-11-05",
+      "rationale": "Cross-border freight in support of sanctioned trade"
+    }
+  ]
+}
