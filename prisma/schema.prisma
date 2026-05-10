@@ -1,5 +1,8 @@
-// InvoiceLens v2 — Prisma schema
+// InvoiceLens v2 - Prisma schema
 // SQLite for local development. Switches to Postgres at deployment time.
+//
+// Note: Prisma 7 requires the database URL to live in prisma.config.ts,
+// not in this schema file. The datasource block declares only the provider here.
 
 generator client {
   provider = "prisma-client"
@@ -11,13 +14,13 @@ datasource db {
 }
 
 // =============================================================================
-// VENDOR — master list of known suppliers
+// VENDOR - master list of known suppliers
 // =============================================================================
 model Vendor {
   id                  Int       @id @default(autoincrement())
   name                String
   nameVariants        String    @default("[]") // JSON array of alt names
-  yTunnus             String?   // Finnish business ID, format 1234567-8
+  yTunnus             String?   @unique // Finnish business ID, format 1234567-8
   country             String    @default("FI") // ISO 3166-1 alpha-2
   expectedGlCategory  String?   // e.g. FUEL, VEHICLE_MAINTENANCE
   isActive            Boolean   @default(true)
@@ -28,11 +31,10 @@ model Vendor {
   invoices            Invoice[]
 
   @@index([name])
-  @@index([yTunnus])
 }
 
 // =============================================================================
-// INVOICE — every invoice flowing through the triage queue
+// INVOICE - every invoice flowing through the triage queue
 // =============================================================================
 model Invoice {
   id                      Int       @id @default(autoincrement())
@@ -90,7 +92,7 @@ model Invoice {
 }
 
 // =============================================================================
-// AUDIT LOG — immutable record of every action on every invoice
+// AUDIT LOG - immutable record of every action on every invoice
 // =============================================================================
 model AuditLog {
   id                Int       @id @default(autoincrement())
