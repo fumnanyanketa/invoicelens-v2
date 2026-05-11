@@ -5,33 +5,16 @@
  * checks (vendor match, sanctions screening, duplicate detection) into a single
  * routing decision: GREEN, AMBER, or RED.
  *
- * Request body:
- *   { "filename": "INV-001-neste.pdf" }
+ * v1.2 calibration (2026-05-11):
+ *   - v1.1: GREEN_THRESHOLD raised to 0.92, FUZZY_NAME capped at 0.85
+ *   - v1.2: Even on EXACT_YTUNNUS match, if extracted name is significantly
+ *     different from canonical master name (similarity < 0.9), apply NAME_MISMATCH
+ *     penalty dropping vendorMatchScore to NAME_MISMATCH_FALLBACK_SCORE (0.85).
+ *     Rationale: Identity confirmed + name mismatch is a master-data quality
+ *     signal worth surfacing to AP review. Real-world cases: vendor rebrand,
+ *     ERP system glitch, billing system misconfiguration.
  *
- * Success response (200) - decision package:
- *   {
- *     "success": true,
- *     "filename": "...",
- *     "extraction": { ...from Haiku... },
- *     "reasoning": { ...from Sonnet... },
- *     "checks": {
- *       "vendorMatch": {...},
- *       "sanctions": {...},
- *       "duplicate": {...}
- *     },
- *     "confidence": {
- *       "extractionCompleteness": 0.92,
- *       "vendorMatchScore": 0.95,
- *       "glConfidenceComponent": 0.97,
- *       "duplicateSignal": 1.0,
- *       "sanctionsSignal": 1.0,
- *       "composite": 0.94
- *     },
- *     "lane": "GREEN",
- *     "hardFailReason": null | "SANCTIONS_HIT" | "DUPLICATE" | "INVALID_PDF"
- *   }
- *
- * This is Stage 7.3 of the InvoiceLens v2 build.
+ * Stage 7.3 of the InvoiceLens v2 build.
  * Exam mapping: Domain 1 (Agentic Architecture), Domain 2 (Tool Design),
  *               Domain 4 (Prompt Engineering and Validation).
  */
@@ -46,11 +29,9 @@ import path from "path";
 // CONFIGURATION - thresholds and weights
 // =============================================================================
 
-// Lane thresholds (composite score)
-const GREEN_THRESHOLD = 0.85;
+const GREEN_THRESHOLD = 0.92;
 const AMBER_THRESHOLD = 0.6;
 
-// Composite scoring weights (must sum to 1.0)
 const WEIGHTS = {
   extractionCompleteness: 0.2,
   vendorMatchScore: 0.3,
@@ -59,9 +40,15 @@ const WEIGHTS = {
   sanctionsSignal: 0.15,
 };
 
-// Fuse.js fuzzy match config
-const VENDOR_FUZZY_THRESHOLD = 0.4; // moderate strictness
-const SANCTIONS_FUZZY_THRESHOLD = 0.3; // stricter (false positives cheaper than false negatives)
+// Vendor match scoring
+const FUZZY_VENDOR_MATCH_CAP = 0.85;
+// v1.2: Even on exact Y-tunnus match, if extracted name doesn't closely match
+// the canonical master name (similarity < this threshold), apply the fallback score.
+const NAME_SIMILARITY_THRESHOLD = 0.9;
+const NAME_MISMATCH_FALLBACK_SCORE = 0.85;
+
+const VENDOR_FUZZY_THRESHOLD = 0.4;
+const SANCTIONS_FUZZY_THRESHOLD = 0.3;
 
 const SANCTIONS_FILE = path.join(process.cwd(), "lib", "sanctions", "eu-consolidated.json");
 
@@ -90,22 +77,49 @@ interface VendorRow {
 }
 
 // =============================================================================
-// HELPER: extraction completeness
+// HELPER: simple string similarity (Sørensen-Dice on bigrams, 0.0 - 1.0)
 // =============================================================================
 
 /**
- * Score how completely Haiku populated the extraction fields.
- * Required fields (must be non-null/non-empty) get full weight.
- * Optional fields get partial weight.
- * Returns 0.0 - 1.0.
+ * Returns a similarity score between two strings, 0.0 (different) to 1.0 (identical).
+ * Uses Sørensen-Dice coefficient on bigrams. Industry-standard for short name comparison.
+ * Case-insensitive, whitespace-normalised.
  */
+function nameSimilarity(a: string, b: string): number {
+  const norm = (s: string) => s.toLowerCase().trim().replace(/\s+/g, " ");
+  const aN = norm(a);
+  const bN = norm(b);
+  if (aN === bN) return 1.0;
+  if (aN.length < 2 || bN.length < 2) return 0.0;
+
+  const bigrams = (s: string) => {
+    const set = new Map<string, number>();
+    for (let i = 0; i < s.length - 1; i++) {
+      const bg = s.substring(i, i + 2);
+      set.set(bg, (set.get(bg) ?? 0) + 1);
+    }
+    return set;
+  };
+
+  const aBg = bigrams(aN);
+  const bBg = bigrams(bN);
+
+  let intersection = 0;
+  for (const [bg, count] of aBg) {
+    const other = bBg.get(bg) ?? 0;
+    intersection += Math.min(count, other);
+  }
+
+  const total = [...aBg.values()].reduce((s, n) => s + n, 0) + [...bBg.values()].reduce((s, n) => s + n, 0);
+  return (2 * intersection) / total;
+}
+
+// =============================================================================
+// HELPER: extraction completeness
+// =============================================================================
+
 function scoreExtractionCompleteness(extraction: Record<string, unknown>): number {
-  const required = [
-    "vendorName",
-    "invoiceNumber",
-    "invoiceDate",
-    "grossAmount",
-  ];
+  const required = ["vendorName", "invoiceNumber", "invoiceDate", "grossAmount"];
   const optional = [
     "vendorEmail",
     "vendorAddress",
@@ -132,12 +146,9 @@ function scoreExtractionCompleteness(extraction: Record<string, unknown>): numbe
     }
   }
 
-  // Line items also matter
   const lineItems = extraction.lineItems;
-  if (Array.isArray(lineItems) && lineItems.length > 0) {
-    // already counted as part of structure; bonus not needed
-  } else {
-    score *= 0.9; // penalty for empty line items
+  if (!Array.isArray(lineItems) || lineItems.length === 0) {
+    score *= 0.9;
   }
 
   return Math.min(1.0, Math.max(0.0, score));
@@ -145,12 +156,10 @@ function scoreExtractionCompleteness(extraction: Record<string, unknown>): numbe
 
 // =============================================================================
 // HELPER: vendor fuzzy match
+//   v1.1: FUZZY_NAME capped at 0.85
+//   v1.2: EXACT_YTUNNUS + name mismatch also capped at 0.85
 // =============================================================================
 
-/**
- * Find the best vendor match in the master using fuzzy name matching
- * across name and nameVariants. Returns match details + score (0-1, higher better).
- */
 function matchVendor(
   extractedName: string | null,
   extractedYTunnus: string | null,
@@ -159,12 +168,30 @@ function matchVendor(
   matchedVendorId: number | null;
   matchedVendorName: string | null;
   score: number;
-  matchType: "EXACT_YTUNNUS" | "FUZZY_NAME" | "NONE";
+  matchType: "EXACT_YTUNNUS" | "EXACT_YTUNNUS_NAME_MISMATCH" | "FUZZY_NAME" | "NONE";
+  nameMismatch?: { extracted: string; canonical: string; similarity: number };
 } {
-  // First pass: exact Y-tunnus match (most reliable signal)
+  // First pass: exact Y-tunnus match
   if (extractedYTunnus) {
     const exactMatch = vendors.find((v) => v.yTunnus === extractedYTunnus);
     if (exactMatch) {
+      // v1.2: Check name similarity even on exact Y-tunnus match
+      if (extractedName) {
+        const similarity = nameSimilarity(extractedName, exactMatch.name);
+        if (similarity < NAME_SIMILARITY_THRESHOLD) {
+          return {
+            matchedVendorId: exactMatch.id,
+            matchedVendorName: exactMatch.name,
+            score: NAME_MISMATCH_FALLBACK_SCORE,
+            matchType: "EXACT_YTUNNUS_NAME_MISMATCH",
+            nameMismatch: {
+              extracted: extractedName,
+              canonical: exactMatch.name,
+              similarity,
+            },
+          };
+        }
+      }
       return {
         matchedVendorId: exactMatch.id,
         matchedVendorName: exactMatch.name,
@@ -179,7 +206,6 @@ function matchVendor(
     return { matchedVendorId: null, matchedVendorName: null, score: 0, matchType: "NONE" };
   }
 
-  // Build the fuse-searchable corpus with each variant as a separate searchable string
   const corpus = vendors.flatMap((v) => {
     let variants: string[] = [];
     try {
@@ -207,10 +233,13 @@ function matchVendor(
 
   const best = results[0];
   const fuseScore = best.score ?? 1.0;
+  const rawScore = 1.0 - fuseScore;
+  const cappedScore = Math.min(rawScore, FUZZY_VENDOR_MATCH_CAP);
+
   return {
     matchedVendorId: best.item.vendor.id,
     matchedVendorName: best.item.vendor.name,
-    score: 1.0 - fuseScore, // invert: fuse 0 = perfect, we want 1.0 = perfect
+    score: cappedScore,
     matchType: "FUZZY_NAME",
   };
 }
@@ -219,10 +248,6 @@ function matchVendor(
 // HELPER: sanctions check
 // =============================================================================
 
-/**
- * Check the extracted vendor against the EU consolidated sanctions list.
- * Two passes: exact Y-tunnus, then fuzzy name. Either hit = sanctions hit.
- */
 async function checkSanctions(
   extractedName: string | null,
   extractedYTunnus: string | null
@@ -235,16 +260,10 @@ async function checkSanctions(
   const sanctionsData = JSON.parse(sanctionsRaw);
   const entries: SanctionsEntry[] = sanctionsData.entries;
 
-  // First pass: Y-tunnus exact match
-  // (Note: real EU list does carry tax IDs; our mock list doesn't, but the
-  // pattern is here for when this connects to the real list.)
   if (extractedYTunnus) {
-    // For now, our mock entries don't have yTunnus field. If they did:
-    // const ytunnusHit = entries.find((e) => e.yTunnus === extractedYTunnus);
-    // Skipping until we add yTunnus to sanctions entries.
+    // Future: Y-tunnus exact pass when real sanctions list has tax IDs
   }
 
-  // Second pass: fuzzy name match
   if (!extractedName) {
     return { hit: false, matchedEntry: null, matchType: "NONE" };
   }
@@ -278,11 +297,6 @@ async function checkSanctions(
 // HELPER: duplicate detection
 // =============================================================================
 
-/**
- * Query the Invoice table for duplicates.
- * Strong duplicate: same vendor Y-tunnus + same invoice number + same gross amount.
- * Weak duplicate: same invoice number from a different vendor, or matching pair but different amount.
- */
 async function checkDuplicate(
   extractedYTunnus: string | null,
   extractedInvoiceNumber: string | null,
@@ -302,7 +316,6 @@ async function checkDuplicate(
     };
   }
 
-  // Find any invoice with the same invoice number
   const candidates = await prisma.invoice.findMany({
     where: { invoiceNumber: extractedInvoiceNumber },
     include: { vendor: true },
@@ -317,7 +330,6 @@ async function checkDuplicate(
     };
   }
 
-  // Look for a strong duplicate
   for (const candidate of candidates) {
     const sameYTunnus = candidate.vendor?.yTunnus === extractedYTunnus;
     const sameAmount =
@@ -335,7 +347,6 @@ async function checkDuplicate(
     }
   }
 
-  // Otherwise weak duplicate
   return {
     isStrongDuplicate: false,
     isWeakDuplicate: true,
@@ -395,9 +406,6 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // ---------------------------------------------------------------------
-    // 1. Extraction (Haiku via /api/extract)
-    // ---------------------------------------------------------------------
     const origin = request.nextUrl.origin;
 
     const extractResp = await fetch(`${origin}/api/extract`, {
@@ -407,9 +415,7 @@ export async function POST(request: NextRequest) {
     });
     const extractData = await extractResp.json();
 
-    // Hard-fail: PDF could not be parsed at all
     if (!extractData.success) {
-      // The extraction route already classified the error. Propagate it.
       const isInvalidPdf = extractData.code === "INVALID_PDF";
       const hardFail = isInvalidPdf ? "INVALID_PDF" : null;
 
@@ -434,22 +440,14 @@ export async function POST(request: NextRequest) {
         });
       }
 
-      // Non-hard-fail extraction error: bubble up
       return NextResponse.json(
-        {
-          success: false,
-          error: `Extraction failed: ${extractData.error}`,
-          code: extractData.code,
-        },
+        { success: false, error: `Extraction failed: ${extractData.error}`, code: extractData.code },
         { status: 502 }
       );
     }
 
     const extraction = extractData.extraction;
 
-    // ---------------------------------------------------------------------
-    // 2. Vendor master fetch + fuzzy match
-    // ---------------------------------------------------------------------
     const vendors = (await prisma.vendor.findMany({
       where: { isActive: true },
       select: {
@@ -463,24 +461,13 @@ export async function POST(request: NextRequest) {
     })) as VendorRow[];
 
     const vendorMatch = matchVendor(extraction.vendorName, extraction.vendorYTunnus, vendors);
-
-    // ---------------------------------------------------------------------
-    // 3. Sanctions check
-    // ---------------------------------------------------------------------
     const sanctions = await checkSanctions(extraction.vendorName, extraction.vendorYTunnus);
-
-    // ---------------------------------------------------------------------
-    // 4. Duplicate check
-    // ---------------------------------------------------------------------
     const duplicate = await checkDuplicate(
       extraction.vendorYTunnus,
       extraction.invoiceNumber,
       extraction.grossAmount
     );
 
-    // ---------------------------------------------------------------------
-    // 5. Reasoning (Sonnet via /api/reasoning)
-    // ---------------------------------------------------------------------
     const reasonResp = await fetch(`${origin}/api/reasoning`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -490,20 +477,13 @@ export async function POST(request: NextRequest) {
 
     if (!reasonData.success) {
       return NextResponse.json(
-        {
-          success: false,
-          error: `Reasoning failed: ${reasonData.error}`,
-          code: reasonData.code,
-        },
+        { success: false, error: `Reasoning failed: ${reasonData.error}`, code: reasonData.code },
         { status: 502 }
       );
     }
 
     const reasoning = reasonData.suggestion;
 
-    // ---------------------------------------------------------------------
-    // 6. Compute confidence components + lane
-    // ---------------------------------------------------------------------
     const components = {
       extractionCompleteness: scoreExtractionCompleteness(extraction),
       vendorMatchScore: vendorMatch.score,
@@ -512,16 +492,12 @@ export async function POST(request: NextRequest) {
       sanctionsSignal: sanctions.hit ? 0 : 1.0,
     };
 
-    // Hard-fail signals override the composite score
     let hardFailReason: string | null = null;
     if (sanctions.hit) hardFailReason = "SANCTIONS_HIT";
     else if (duplicate.isStrongDuplicate) hardFailReason = "DUPLICATE";
 
     const { composite, lane } = computeLane(components, hardFailReason);
 
-    // ---------------------------------------------------------------------
-    // 7. Return decision package
-    // ---------------------------------------------------------------------
     return NextResponse.json({
       success: true,
       filename,
