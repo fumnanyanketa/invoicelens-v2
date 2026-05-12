@@ -1,66 +1,79 @@
 /**
  * One column of the triage queue (GREEN, AMBER, or RED).
  *
- * Server component. Renders a header with lane label + count, then the cards.
+ * Server component. v2 styling ported from v0.dev:
+ * - Single-line header with descriptive label
+ * - Solid-fill count pill in lane colour
+ * - Soft tinted column header background
  */
 
+import { cn } from "@/lib/utils";
 import { InvoiceCard } from "./invoice-card";
 import type { Invoice, Vendor } from "@/lib/generated/prisma/models";
 
+type Lane = "GREEN" | "AMBER" | "RED";
+
+interface LaneConfig {
+  title: string;
+  headerBg: string;
+  countBg: string;
+}
+
 interface LaneColumnProps {
-  lane: "GREEN" | "AMBER" | "RED";
+  lane: Lane;
   invoices: Array<Invoice & { vendor: Vendor | null }>;
 }
 
-const LANE_STYLES = {
+const LANE_CONFIG: Record<Lane, LaneConfig> = {
   GREEN: {
-    headerBg: "bg-emerald-50",
-    headerText: "text-emerald-900",
-    badge: "bg-emerald-100 text-emerald-800",
-    accentBar: "bg-emerald-500",
-    label: "Auto-suggest",
+    title: "Auto-suggest",
+    headerBg: "bg-status-green-bg",
+    countBg: "bg-status-green",
   },
   AMBER: {
-    headerBg: "bg-amber-50",
-    headerText: "text-amber-900",
-    badge: "bg-amber-100 text-amber-800",
-    accentBar: "bg-amber-500",
-    label: "Review",
+    title: "Review",
+    headerBg: "bg-status-amber-bg",
+    countBg: "bg-status-amber",
   },
   RED: {
-    headerBg: "bg-rose-50",
-    headerText: "text-rose-900",
-    badge: "bg-rose-100 text-rose-800",
-    accentBar: "bg-rose-500",
-    label: "Block",
+    title: "Block",
+    headerBg: "bg-status-rose-bg",
+    countBg: "bg-status-rose",
   },
 };
 
 export function LaneColumn({ lane, invoices }: LaneColumnProps) {
-  const style = LANE_STYLES[lane];
+  const config = LANE_CONFIG[lane];
 
   return (
-    <div className="rounded-lg bg-white border border-neutral-200 overflow-hidden">
-      <div className={`${style.headerBg} px-4 py-3 border-b border-neutral-200 flex items-center justify-between`}>
-        <div>
-          <div className={`text-sm font-semibold ${style.headerText}`}>
-            {lane}
-          </div>
-          <div className="text-xs text-neutral-500">{style.label}</div>
-        </div>
-        <div className={`inline-flex items-center justify-center rounded-full px-2.5 py-0.5 text-xs font-medium ${style.badge}`}>
+    <div className="flex flex-col rounded-xl border border-border bg-card/50 overflow-hidden">
+      {/* Column header */}
+      <div
+        className={cn(
+          "flex items-center justify-between px-4 py-3 border-b border-border",
+          config.headerBg
+        )}
+      >
+        <h2 className="text-sm font-semibold text-foreground">{config.title}</h2>
+        <span
+          className={cn(
+            "flex h-6 min-w-6 items-center justify-center rounded-full px-2 text-xs font-semibold tabular-nums text-white",
+            config.countBg
+          )}
+        >
           {invoices.length}
-        </div>
+        </span>
       </div>
 
-      <div className="p-3 space-y-2 max-h-[calc(100vh-220px)] overflow-y-auto">
+      {/* Cards */}
+      <div className="flex flex-col gap-3 p-3 overflow-y-auto max-h-[calc(100vh-220px)]">
         {invoices.length === 0 ? (
-          <div className="text-center py-8 text-sm text-neutral-400">
+          <p className="text-center text-sm text-muted-foreground py-8">
             No invoices in this lane.
-          </div>
+          </p>
         ) : (
           invoices.map((inv) => (
-            <InvoiceCard key={inv.id} invoice={inv} laneAccent={style.accentBar} />
+            <InvoiceCard key={inv.id} invoice={inv} lane={lane} />
           ))
         )}
       </div>

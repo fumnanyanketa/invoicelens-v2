@@ -3,19 +3,37 @@
 /**
  * Single invoice card in the triage queue. Click to open detail modal.
  *
- * Client component because clicking opens the modal (interactive state).
+ * v2 styling ported from v0.dev:
+ * - Lane-coloured accent bar on the left edge
+ * - Lane-coloured confidence number in top right
+ * - Finnish-locale amount formatting (5 294,22 €)
+ * - Hard-fail tag as a bordered pill
  */
 
 import { useState } from "react";
+import { cn, formatEuro } from "@/lib/utils";
 import { InvoiceDetailModal } from "./invoice-detail-modal";
 import type { Invoice, Vendor } from "@/lib/generated/prisma/models";
 
 interface InvoiceCardProps {
   invoice: Invoice & { vendor: Vendor | null };
-  laneAccent: string;
+  lane: "GREEN" | "AMBER" | "RED";
 }
 
-export function InvoiceCard({ invoice, laneAccent }: InvoiceCardProps) {
+const ACCENT_BAR: Record<"GREEN" | "AMBER" | "RED", string> = {
+  GREEN: "bg-status-green",
+  AMBER: "bg-status-amber",
+  RED: "bg-status-rose",
+};
+
+function confidenceColour(score: number | null): string {
+  if (score === null || score === undefined) return "text-muted-foreground";
+  if (score >= 0.9) return "text-status-green";
+  if (score >= 0.6) return "text-status-amber";
+  return "text-status-rose";
+}
+
+export function InvoiceCard({ invoice, lane }: InvoiceCardProps) {
   const [open, setOpen] = useState(false);
 
   const decisionSnapshot = (() => {
@@ -29,51 +47,55 @@ export function InvoiceCard({ invoice, laneAccent }: InvoiceCardProps) {
   const oneLine = decisionSnapshot?.reasoning?.oneLineSummary ?? null;
   const hardFail = decisionSnapshot?.hardFailReason ?? null;
 
-  const formatAmount = (n: number | null) => {
-    if (n === null || n === undefined) return "—";
-    return new Intl.NumberFormat("en-GB", {
-      style: "currency",
-      currency: invoice.currency || "EUR",
-      maximumFractionDigits: 2,
-    }).format(n);
-  };
-
   return (
     <>
       <button
         onClick={() => setOpen(true)}
-        className="w-full text-left rounded-md border border-neutral-200 bg-white p-3 hover:border-neutral-300 hover:shadow-sm transition-all relative overflow-hidden"
+        className={cn(
+          "group relative flex w-full shrink-0 text-left cursor-pointer overflow-hidden rounded-lg border border-border bg-card shadow-sm transition-all duration-150",
+          "hover:border-border/80 hover:shadow-md"
+        )}
       >
-        <div className={`absolute left-0 top-0 bottom-0 w-1 ${laneAccent}`} />
+        {/* Lane accent bar */}
+        <div className={cn("w-1 shrink-0", ACCENT_BAR[lane])} />
 
-        <div className="pl-2">
-          <div className="flex items-start justify-between gap-2 mb-1">
-            <div className="font-medium text-sm text-neutral-900 truncate">
+        <div className="flex flex-1 flex-col gap-2 p-4">
+          {/* Vendor + confidence */}
+          <div className="flex items-start justify-between gap-3">
+            <h3 className="text-sm font-semibold text-foreground leading-tight text-pretty">
               {invoice.vendorName ?? "(unknown vendor)"}
-            </div>
-            <div className="text-xs font-mono text-neutral-500 shrink-0">
+            </h3>
+            <span
+              className={cn(
+                "shrink-0 font-mono text-xs font-medium tabular-nums",
+                confidenceColour(invoice.confidenceScore)
+              )}
+            >
               {invoice.confidenceScore !== null
                 ? invoice.confidenceScore.toFixed(2)
                 : "—"}
-            </div>
+            </span>
           </div>
 
-          <div className="text-sm font-semibold text-neutral-900 mb-1">
-            {formatAmount(invoice.grossAmount)}
-          </div>
+          {/* Gross amount */}
+          <p className="text-lg font-semibold tracking-tight text-foreground tabular-nums">
+            {formatEuro(invoice.grossAmount, invoice.currency)}
+          </p>
 
-          <div className="text-xs text-neutral-500 mb-1">
+          {/* Invoice number + GL code */}
+          <p className="text-xs text-muted-foreground">
             {invoice.invoiceNumber ?? "(no number)"} &middot; {invoice.glCodeSuggestion ?? "—"}
-          </div>
+          </p>
 
+          {/* Hard-fail pill or AI summary */}
           {hardFail ? (
-            <div className="text-xs font-medium text-rose-700 mt-1">
+            <span className="mt-1 inline-flex w-fit items-center rounded-md border border-status-rose-border bg-status-rose-bg px-2 py-0.5 text-xs font-medium text-status-rose">
               {hardFail.replace(/_/g, " ")}
-            </div>
+            </span>
           ) : oneLine ? (
-            <div className="text-xs text-neutral-600 line-clamp-2 mt-1">
+            <p className="mt-1 text-xs leading-relaxed text-muted-foreground line-clamp-2">
               {oneLine}
-            </div>
+            </p>
           ) : null}
         </div>
       </button>
