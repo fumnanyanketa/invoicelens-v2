@@ -1,4 +1,4 @@
-﻿/**
+/**
  * InvoiceLens v2 — Vendor master seed
  *
  * Populates the Vendor table with 8 fictional vendors representing
@@ -113,11 +113,11 @@ async function main() {
         isActive: vendor.isActive,
       },
     });
-    console.log(`  ${result.name} (${result.yTunnus})`);
+    console.log("  " + result.name + " (" + result.yTunnus + ")");
   }
 
   const total = await prisma.vendor.count();
-  console.log(`\nSeed complete. ${total} vendors in database.`);
+  console.log("\nSeed complete. " + total + " vendors in database.");
 }
 
 main()
