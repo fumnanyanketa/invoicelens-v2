@@ -3,15 +3,18 @@
  *
  * Why this exists: Next.js dev mode hot-reloads on file save, which means
  * every route file would instantiate a new PrismaClient on every reload.
- * Each new client opens a database connection. SQLite has a connection
- * cap. Without this singleton, the dev server crashes within ~20 reloads.
+ * Each new client opens a database connection. Postgres has connection
+ * limits (Neon's free tier: 100 concurrent connections). Without this
+ * singleton, the dev server would exhaust the pool within ~20 reloads.
  *
- * Pattern: stash the client on the global object so it survives hot reloads.
- * In production (Vercel), each serverless function gets a fresh global,
- * so the singleton naturally rebuilds per function invocation.
+ * Prisma 7 pattern: PrismaClient requires a driver adapter. For Postgres
+ * we use @prisma/adapter-pg which wraps node-postgres. The connection URL
+ * comes from the DATABASE_URL env var. On Vercel, this should be the
+ * pooled Neon URL (with -pooler in the hostname) so serverless function
+ * cold starts don't exhaust direct connections.
  */
 
-import { PrismaBetterSqlite3 } from "@prisma/adapter-better-sqlite3";
+import { PrismaPg } from "@prisma/adapter-pg";
 import { PrismaClient } from "./generated/prisma/client";
 
 const globalForPrisma = globalThis as unknown as {
@@ -19,9 +22,13 @@ const globalForPrisma = globalThis as unknown as {
 };
 
 function createPrismaClient(): PrismaClient {
-  const adapter = new PrismaBetterSqlite3({
-    url: process.env.DATABASE_URL || "file:./prisma/dev.db",
-  });
+  const connectionString = process.env.DATABASE_URL;
+  if (!connectionString) {
+    throw new Error(
+      "DATABASE_URL is not set. Add it to .env.local for local dev or to Vercel env vars for production."
+    );
+  }
+  const adapter = new PrismaPg({ connectionString });
   return new PrismaClient({ adapter });
 }
 

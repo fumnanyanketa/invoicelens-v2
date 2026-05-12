@@ -7,8 +7,7 @@
  *   npx tsx scripts/backfill-one.ts INV-013-dna.pdf
  */
 
-import { PrismaBetterSqlite3 } from "@prisma/adapter-better-sqlite3";
-import { PrismaClient } from "../lib/generated/prisma/client";
+import { prisma } from "./_prisma";
 
 const filename = process.argv[2];
 
@@ -16,11 +15,6 @@ if (!filename) {
   console.error("Usage: npx tsx scripts/backfill-one.ts <filename>");
   process.exit(1);
 }
-
-const adapter = new PrismaBetterSqlite3({
-  url: process.env.DATABASE_URL || "file:./prisma/dev.db",
-});
-const prisma = new PrismaClient({ adapter });
 
 async function main() {
   // -----------------------------------------------------------------------

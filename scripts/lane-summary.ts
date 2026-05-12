@@ -1,13 +1,7 @@
 /**
  * Quick analytics: lane distribution + sanity check on hard-fails.
  */
-import { PrismaBetterSqlite3 } from "@prisma/adapter-better-sqlite3";
-import { PrismaClient } from "../lib/generated/prisma/client";
-
-const adapter = new PrismaBetterSqlite3({
-  url: process.env.DATABASE_URL || "file:./prisma/dev.db",
-});
-const prisma = new PrismaClient({ adapter });
+import { prisma } from "./_prisma";
 
 async function main() {
   const all = await prisma.invoice.findMany({

@@ -1,4 +1,4 @@
-/**
+﻿/**
  * InvoiceLens v2 — Vendor master seed
  *
  * Populates the Vendor table with 8 fictional vendors representing
@@ -10,33 +10,20 @@
  * does not duplicate vendors. Safe to run any number of times.
  */
 
-import "dotenv/config";
-import { PrismaBetterSqlite3 } from "@prisma/adapter-better-sqlite3";
+import { config as loadDotenv } from "dotenv";
+
+loadDotenv({ path: ".env.local" });
+loadDotenv({ path: ".env" });
+
+import { PrismaPg } from "@prisma/adapter-pg";
 import { PrismaClient } from "../lib/generated/prisma/client";
 
-/**
- * Prisma 7 requires a driver adapter to be passed to the PrismaClient constructor.
- * @prisma/adapter-better-sqlite3 wraps the better-sqlite3 driver and provides
- * the connection interface Prisma 7 expects.
- *
- * The url falls back to "file:./prisma/dev.db" if DATABASE_URL is not set,
- * matching the schema.prisma datasource and the .env configuration.
- */
-const adapter = new PrismaBetterSqlite3({
-  url: process.env.DATABASE_URL || "file:./prisma/dev.db",
+const adapter = new PrismaPg({
+  connectionString: process.env.DATABASE_URL,
 });
 
 const prisma = new PrismaClient({ adapter });
 
-/**
- * 8 vendors designed to exercise every triage lane in the v2 demo:
- * - 6 Finnish vendors (matches a real Turku SME's supplier mix)
- * - 1 cross-border EU vendor (Microsoft Ireland) for VAT reverse-charge
- * - 1 Russia-domiciled vendor (Karelia Logistics) as the sanctions trip-wire
- *
- * Y-tunnus numbers are fictional but format-valid (7 digits + hyphen + check digit)
- * GL categories follow Finnish SME chart-of-accounts conventions
- */
 const vendors = [
   {
     name: "Neste Markkinointi Oy",
@@ -104,11 +91,6 @@ const vendors = [
   },
 ];
 
-/**
- * Main seeding function.
- * Uses upsert so re-running the seed does not create duplicates.
- * Match key is yTunnus (the natural unique identifier for a business).
- */
 async function main() {
   console.log("Seeding vendor master...");
 
