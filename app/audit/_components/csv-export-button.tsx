@@ -6,10 +6,10 @@
  */
 
 import { Button } from "@/components/ui/button";
-import type { AuditLog, Invoice, Vendor } from "@/lib/generated/prisma/models";
+import type { AuditLogModel, InvoiceModel, VendorModel } from "@/lib/generated/prisma/models";
 
-type AuditEntry = AuditLog & {
-  invoice: Invoice & { vendor: Vendor | null };
+type AuditEntry = AuditLogModel & {
+  invoice: InvoiceModel & { vendor: VendorModel | null };
 };
 
 interface CsvExportButtonProps {

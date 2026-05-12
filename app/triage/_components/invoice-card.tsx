@@ -13,10 +13,10 @@
 import { useState } from "react";
 import { cn, formatEuro } from "@/lib/utils";
 import { InvoiceDetailModal } from "./invoice-detail-modal";
-import type { Invoice, Vendor } from "@/lib/generated/prisma/models";
+import type { InvoiceModel, VendorModel } from "@/lib/generated/prisma/models";
 
 interface InvoiceCardProps {
-  invoice: Invoice & { vendor: Vendor | null };
+  invoice: InvoiceModel & { vendor: VendorModel | null };
   lane: "GREEN" | "AMBER" | "RED";
 }
 
@@ -60,7 +60,7 @@ export function InvoiceCard({ invoice, lane }: InvoiceCardProps) {
         <div className={cn("w-1 shrink-0", ACCENT_BAR[lane])} />
 
         <div className="flex flex-1 flex-col gap-2 p-4">
-          {/* Vendor + confidence */}
+          {/* VendorModel + confidence */}
           <div className="flex items-start justify-between gap-3">
             <h3 className="text-sm font-semibold text-foreground leading-tight text-pretty">
               {invoice.vendorName ?? "(unknown vendor)"}
@@ -82,7 +82,7 @@ export function InvoiceCard({ invoice, lane }: InvoiceCardProps) {
             {formatEuro(invoice.grossAmount, invoice.currency)}
           </p>
 
-          {/* Invoice number + GL code */}
+          {/* InvoiceModel number + GL code */}
           <p className="text-xs text-muted-foreground">
             {invoice.invoiceNumber ?? "(no number)"} &middot; {invoice.glCodeSuggestion ?? "—"}
           </p>

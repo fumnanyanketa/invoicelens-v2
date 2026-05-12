@@ -9,7 +9,7 @@
 
 import { cn } from "@/lib/utils";
 import { InvoiceCard } from "./invoice-card";
-import type { Invoice, Vendor } from "@/lib/generated/prisma/models";
+import type { InvoiceModel, VendorModel } from "@/lib/generated/prisma/models";
 
 type Lane = "GREEN" | "AMBER" | "RED";
 
@@ -21,7 +21,7 @@ interface LaneConfig {
 
 interface LaneColumnProps {
   lane: Lane;
-  invoices: Array<Invoice & { vendor: Vendor | null }>;
+  invoices: Array<InvoiceModel & { vendor: VendorModel | null }>;
 }
 
 const LANE_CONFIG: Record<Lane, LaneConfig> = {

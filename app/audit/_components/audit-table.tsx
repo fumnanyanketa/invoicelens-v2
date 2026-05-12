@@ -8,10 +8,10 @@
 import { useState } from "react";
 import { AuditRow } from "./audit-row";
 import { CsvExportButton } from "./csv-export-button";
-import type { AuditLog, Invoice, Vendor } from "@/lib/generated/prisma/models";
+import type { AuditLogModel, InvoiceModel, VendorModel } from "@/lib/generated/prisma/models";
 
-type AuditEntry = AuditLog & {
-  invoice: Invoice & { vendor: Vendor | null };
+type AuditEntry = AuditLogModel & {
+  invoice: InvoiceModel & { vendor: VendorModel | null };
 };
 
 interface AuditTableProps {
@@ -44,8 +44,8 @@ export function AuditTable({ entries }: AuditTableProps) {
             <tr className="text-left text-xs uppercase tracking-wide text-neutral-500">
               <th className="px-4 py-3 font-medium">Decided</th>
               <th className="px-4 py-3 font-medium">By</th>
-              <th className="px-4 py-3 font-medium">Invoice</th>
-              <th className="px-4 py-3 font-medium">Vendor</th>
+              <th className="px-4 py-3 font-medium">InvoiceModel</th>
+              <th className="px-4 py-3 font-medium">VendorModel</th>
               <th className="px-4 py-3 font-medium">AI suggested</th>
               <th className="px-4 py-3 font-medium">Human action</th>
               <th className="px-4 py-3 font-medium w-8"></th>

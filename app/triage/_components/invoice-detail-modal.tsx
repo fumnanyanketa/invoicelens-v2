@@ -1,7 +1,7 @@
 "use client";
 
 /**
- * Invoice detail modal. Shows full extraction, AI reasoning, confidence breakdown,
+ * InvoiceModel detail modal. Shows full extraction, AI reasoning, confidence breakdown,
  * and a single-action decision form.
  *
  * Interaction model (v2, after first-pass UX issues):
@@ -26,10 +26,10 @@ import {
 } from "@/components/ui/select";
 import { submitDecision } from "@/app/actions/submit-decision";
 import { toast } from "sonner";
-import type { Invoice, Vendor } from "@/lib/generated/prisma/models";
+import type { InvoiceModel, VendorModel } from "@/lib/generated/prisma/models";
 
 interface InvoiceDetailModalProps {
-  invoice: Invoice & { vendor: Vendor | null };
+  invoice: InvoiceModel & { vendor: VendorModel | null };
   snapshot: any;
   open: boolean;
   onClose: () => void;
@@ -89,7 +89,7 @@ export function InvoiceDetailModal({ invoice, snapshot, open, onClose }: Invoice
       if (result.success) {
         const verb =
           mode === "APPROVED" ? "approved" : mode === "EDITED" ? "reclassified" : "blocked";
-        toast.success(`Invoice ${verb}. Audit log id ${result.auditLogId}.`);
+        toast.success(`InvoiceModel ${verb}. Audit log id ${result.auditLogId}.`);
         onClose();
       } else {
         toast.error(result.error ?? "Decision failed.");
@@ -202,7 +202,7 @@ export function InvoiceDetailModal({ invoice, snapshot, open, onClose }: Invoice
                   <div className="space-y-1 text-xs text-neutral-600 mt-2">
                     {ai.vendorMatchEvidence && (
                       <div>
-                        <b>Vendor:</b> {ai.vendorMatchEvidence}
+                        <b>VendorModel:</b> {ai.vendorMatchEvidence}
                       </div>
                     )}
                     {ai.lineItemAnalysis && (
@@ -240,7 +240,7 @@ export function InvoiceDetailModal({ invoice, snapshot, open, onClose }: Invoice
                     <div className="font-mono">{(conf.extractionCompleteness ?? 0).toFixed(2)}</div>
                   </div>
                   <div className="rounded bg-neutral-50 p-2">
-                    <div className="text-neutral-500">Vendor</div>
+                    <div className="text-neutral-500">VendorModel</div>
                     <div className="font-mono">{(conf.vendorMatchScore ?? 0).toFixed(2)}</div>
                   </div>
                   <div className="rounded bg-neutral-50 p-2">
