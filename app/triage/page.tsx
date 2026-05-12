@@ -7,6 +7,7 @@
  * Decided invoices (APPROVED / EDITED / BLOCKED) live on /audit, not here.
  */
 
+import Link from "next/link";
 import { prisma } from "@/lib/prisma";
 import { LaneColumn } from "./_components/lane-column";
 
@@ -42,9 +43,17 @@ export default async function TriagePage() {
               Saaristo Logistics Oy &middot; AP Triage Queue
             </p>
           </div>
-          <div className="text-sm text-neutral-700">
-            <div className="font-medium">Heikki Lindqvist</div>
-            <div className="text-neutral-500 text-xs">AP Specialist</div>
+          <div className="flex items-center gap-4">
+            <Link
+              href="/audit"
+              className="text-sm text-neutral-600 hover:text-neutral-900"
+            >
+              Audit log →
+            </Link>
+            <div className="text-sm text-neutral-700">
+              <div className="font-medium">Heikki Lindqvist</div>
+              <div className="text-neutral-500 text-xs">AP Specialist</div>
+            </div>
           </div>
         </div>
       </header>
