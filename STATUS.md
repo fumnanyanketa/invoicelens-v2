@@ -2,16 +2,22 @@
 
 _Generated 2026-06-22 from a file-level audit of the repository. Findings are based on reading the code and data, not on commit messages or branch names._
 
+> **Verification note (diagnostic-first):** The authoritative server query
+> `git ls-remote --heads origin` returns exactly **2 branches**. The locally
+> visible count matches (2). This report covers **all 2** server branches. The
+> two branches share history (merge-base = `main`'s HEAD), so neither is an
+> orphan, and they are **not** separate projects.
+
 ---
 
 ## 1. Branches
 
-There are only **two branches**, and they are **identical** — there is no stranded, stale, or unmerged work anywhere in the repo.
+There are only **two branches**, and their application code is **byte-for-byte identical** — there is no stranded, stale, orphan, or unmerged *code* anywhere in the repo. The only difference between them is this report file.
 
-| Branch | Last commit | Ahead / behind `main` | What's actually in it |
+| Branch | Last code commit | Ahead / behind `main` | What's actually in it |
 |---|---|---|---|
-| `main` | 2026-05-12 | — (reference) | The entire project. 18 commits, "Stage 1 → Stage 10d". |
-| `claude/blissful-fermat-rt1cnp` | 2026-05-12 | **0 ahead / 0 behind** | Exact pointer to the same commit as `main` (`db0fe2e`). No unique content. This is the working branch for this report. |
+| `main` | 2026-05-12 | — (reference) | The entire project. 18 commits, "Stage 1 → Stage 10d". Does **not** contain STATUS.md. |
+| `claude/blissful-fermat-rt1cnp` | 2026-05-12 (code); STATUS.md added 2026-06-22 | **+1 / 0** | Identical to `main` plus a single commit that adds **only `STATUS.md`** (this file). No code differences vs `main`. Working branch for this report. |
 
 - **No open or closed pull requests** exist on the remote.
 - The whole history is a single linear chain by one author, dated **2026-05-10 → 2026-05-12** (a ~3-day build). As of today (2026-06-22) the repo has been **untouched for ~6 weeks** — paused, not actively abandoned, but stalled.
